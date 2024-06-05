@@ -7,7 +7,7 @@
 '''
 import argparse
 import os
-import ruamel_yaml as yaml
+import ruamel.yaml as yaml
 import numpy as np
 import random
 import time
@@ -40,8 +40,10 @@ def train(model, data_loader, optimizer, epoch, device):
 
     header = 'Train Epoch: [{}]'.format(epoch)
     print_freq = 50    
-    
+    max_iterations = 8000
     for i,(image, question, answer, weights, n) in enumerate(metric_logger.log_every(data_loader, print_freq, header)):
+        if i >= max_iterations:
+            break
         image, weights = image.to(device,non_blocking=True), weights.to(device,non_blocking=True)      
 
         loss = model(image, question, answer, train=True, n=n, weights=weights)        

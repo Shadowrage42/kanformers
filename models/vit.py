@@ -27,17 +27,21 @@ class Mlp(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
         super().__init__()
         out_features = out_features or in_features
-        hidden_features = hidden_features or in_features
+        hidden_features = 112
+        #hidden_features = hidden_features or in_features
         self.fc1 = nn.Linear(in_features, hidden_features)
         self.act = act_layer()
-        self.fc2 = nn.Linear(hidden_features, out_features)
+        self.fc2 = KANLinear(hidden_features, out_features)
         self.drop = nn.Dropout(drop)
 
     def forward(self, x):
+        x_shape = x.shape
+        x = x.view(-1, x.size(-1))
         x = self.fc1(x)
         x = self.act(x)
         x = self.drop(x)
         x = self.fc2(x)
+        x = x.view(*x_shape)
         x = self.drop(x)
         return x
 
@@ -152,17 +156,13 @@ class VisionTransformer(nn.Module):
         self.pos_drop = nn.Dropout(p=drop_rate)
 
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]  # stochastic depth decay rule
-
-        block = [
+        self.blocks = nn.ModuleList([
             Block(
                 dim=embed_dim, num_heads=num_heads, mlp_ratio=mlp_ratio, qkv_bias=qkv_bias, qk_scale=qk_scale,
                 drop=drop_rate, attn_drop=attn_drop_rate, drop_path=dpr[i], norm_layer=norm_layer,
                 use_grad_checkpointing=(use_grad_checkpointing and i>=depth-ckpt_layer)
             )
-            for i in range(depth-1)]
-        block.append(KANLinear(in_features=embed_dim, out_features=embed_dim))
-
-        self.blocks = nn.ModuleList(block)
+            for i in range(depth)])
         self.norm = norm_layer(embed_dim)
 
         trunc_normal_(self.pos_embed, std=.02)
